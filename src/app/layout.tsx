@@ -13,8 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Bitcoin Control — ガバナンス投票",
-  description: "i4RP/Bitcoin リポジトリのプルリクエストに投票してポイントを獲得",
+  title: "Bitcoin Source Hub",
+  description:
+    "Bitcoin 専用ソースコードハブ — git ホスティング + PR ガバナンス投票",
 };
 
 export default function RootLayout({

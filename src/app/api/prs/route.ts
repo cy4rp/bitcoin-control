@@ -1,48 +1,27 @@
 import getDb from "@/lib/db";
-import { fetchPullRequests } from "@/lib/github";
 import { NextRequest } from "next/server";
 import { getClientIp } from "@/lib/ip";
 
 export async function GET(request: NextRequest) {
   const db = getDb();
   const userId = request.nextUrl.searchParams.get("user_id");
+  const repo = request.nextUrl.searchParams.get("repo") || "Bitcoin";
   const ip = getClientIp(request);
 
-  const ghPrs = await fetchPullRequests("all");
-
-  for (const pr of ghPrs) {
-    const existing = db
-      .prepare("SELECT id FROM pull_requests WHERE gh_number = ?")
-      .get(pr.number);
-
-    if (!existing) {
-      db.prepare(
-        `INSERT INTO pull_requests (gh_number, title, author, body, url, status)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      ).run(
-        pr.number,
-        pr.title,
-        pr.user.login,
-        pr.body || "",
-        pr.html_url,
-        pr.state
-      );
-    } else {
-      db.prepare(
-        "UPDATE pull_requests SET status = ?, title = ? WHERE gh_number = ?"
-      ).run(pr.state, pr.title, pr.number);
-    }
-  }
-
   const prs = db
-    .prepare("SELECT * FROM pull_requests ORDER BY gh_number DESC")
-    .all() as Array<{
+    .prepare(
+      "SELECT * FROM pull_requests WHERE repo = ? ORDER BY pr_number DESC"
+    )
+    .all(repo) as Array<{
     id: number;
-    gh_number: number;
+    pr_number: number;
+    repo: string;
     title: string;
     author: string;
     body: string;
-    url: string;
+    branch: string;
+    base_branch: string;
+    diff_text: string;
     status: string;
     resolved_as: string | null;
     created_at: string;
@@ -51,7 +30,7 @@ export async function GET(request: NextRequest) {
   const result = prs.map((pr) => {
     const votes = db
       .prepare(
-        `SELECT vote, COUNT(*) as count FROM votes WHERE pr_id = ? GROUP BY vote`
+        "SELECT vote, COUNT(*) as count FROM votes WHERE pr_id = ? GROUP BY vote"
       )
       .all(pr.id) as Array<{ vote: string; count: number }>;
 
@@ -60,7 +39,6 @@ export async function GET(request: NextRequest) {
     const rejectCount =
       votes.find((v) => v.vote === "reject")?.count || 0;
 
-    // Check vote by IP (primary) or user_id (fallback)
     let userVote: string | null = null;
     const ipVote = db
       .prepare("SELECT vote FROM votes WHERE ip_address = ? AND pr_id = ?")

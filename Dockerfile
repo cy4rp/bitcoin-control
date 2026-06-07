@@ -1,4 +1,5 @@
 FROM node:22-slim AS base
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
 
 FROM base AS deps
 WORKDIR /app
@@ -27,9 +28,10 @@ RUN chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# SQLite data directory
-RUN mkdir -p /data && chown nextjs:nodejs /data
+# Data directory for SQLite + git repos
+RUN mkdir -p /data/repos && chown -R nextjs:nodejs /data
 ENV DB_PATH=/data/control.db
+ENV REPOS_DIR=/data/repos
 
 USER nextjs
 EXPOSE 8080
