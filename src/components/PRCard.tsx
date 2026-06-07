@@ -25,6 +25,7 @@ interface Props {
 export default function PRCard({ pr, userId, onVoted }: Props) {
   const [voting, setVoting] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [ipError, setIpError] = useState(false);
 
   const total = pr.approveCount + pr.rejectCount;
   const approvePercent = total > 0 ? (pr.approveCount / total) * 100 : 50;
@@ -36,12 +37,17 @@ export default function PRCard({ pr, userId, onVoted }: Props) {
   async function handleVote(vote: "approve" | "reject") {
     if (!userId || voting || isResolved) return;
     setVoting(true);
+    setIpError(false);
     try {
-      await fetch("/api/vote", {
+      const res = await fetch("/api/vote", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_id: userId, pr_id: pr.id, vote }),
       });
+      if (res.status === 403) {
+        setIpError(true);
+        return;
+      }
       onVoted();
     } finally {
       setVoting(false);
@@ -143,8 +149,17 @@ export default function PRCard({ pr, userId, onVoted }: Props) {
         )}
       </div>
 
+      {/* IP duplicate warning */}
+      {ipError && (
+        <div className="px-4 py-2 bg-orange-50 border-t border-orange-100 text-center">
+          <p className="text-xs font-bold text-orange-600">
+            この IP アドレスは既に投票済みです（1 IP = 1 票）
+          </p>
+        </div>
+      )}
+
       {/* Vote buttons */}
-      {!isResolved && userId && (
+      {!isResolved && userId && !ipError && (
         <div className="flex border-t border-zinc-100">
           <button
             onClick={() => handleVote("approve")}

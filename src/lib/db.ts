@@ -20,6 +20,7 @@ function initSchema(db: Database.Database) {
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
+      ip_address TEXT NOT NULL DEFAULT '',
       points INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now'))
     );
@@ -41,12 +42,17 @@ function initSchema(db: Database.Database) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       pr_id INTEGER NOT NULL,
+      ip_address TEXT NOT NULL DEFAULT '',
       vote TEXT NOT NULL CHECK(vote IN ('approve', 'reject')),
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id),
       FOREIGN KEY (pr_id) REFERENCES pull_requests(id),
       UNIQUE(user_id, pr_id)
     );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_votes_ip_pr
+      ON votes(ip_address, pr_id)
+      WHERE ip_address != '';
   `);
 }
 

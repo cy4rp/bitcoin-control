@@ -1,10 +1,12 @@
 import getDb from "@/lib/db";
 import { fetchPullRequests } from "@/lib/github";
 import { NextRequest } from "next/server";
+import { getClientIp } from "@/lib/ip";
 
 export async function GET(request: NextRequest) {
   const db = getDb();
   const userId = request.nextUrl.searchParams.get("user_id");
+  const ip = getClientIp(request);
 
   const ghPrs = await fetchPullRequests("all");
 
@@ -58,8 +60,14 @@ export async function GET(request: NextRequest) {
     const rejectCount =
       votes.find((v) => v.vote === "reject")?.count || 0;
 
+    // Check vote by IP (primary) or user_id (fallback)
     let userVote: string | null = null;
-    if (userId) {
+    const ipVote = db
+      .prepare("SELECT vote FROM votes WHERE ip_address = ? AND pr_id = ?")
+      .get(ip, pr.id) as { vote: string } | undefined;
+    if (ipVote) {
+      userVote = ipVote.vote;
+    } else if (userId) {
       const uv = db
         .prepare("SELECT vote FROM votes WHERE user_id = ? AND pr_id = ?")
         .get(Number(userId), pr.id) as { vote: string } | undefined;
